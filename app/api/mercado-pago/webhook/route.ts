@@ -10,7 +10,7 @@ const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 const sheetRange = "Página1!A2";
 
-async function appendToSheet(values) {
+async function appendToSheet(values: any[][])  {
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
