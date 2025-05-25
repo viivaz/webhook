@@ -1,5 +1,3 @@
-// app/api/mercadopago-webhook/route.js
-
 import { NextResponse, NextRequest } from "next/server";
 import { Payment } from "mercadopago";
 import mpClient, { verifyMercadoPagoSignature } from "@/app/lib/mercado-pago";
@@ -7,7 +5,6 @@ import { google } from "googleapis";
 
 const sheetRange = "Página1!A2";
 
-// Função auxiliar para enviar dados ao Google Sheets
 async function appendToSheet(values: any[]) {
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -45,32 +42,31 @@ export async function POST(request: NextRequest) {
         paymentData.status === "approved" ||
         paymentData.date_approved !== null
       ) {
-        // Extrai dados relevantes do pagamento e do cliente
-        const payer = paymentData.payer ?? {};
-        const address = payer.address ?? {};
-        const phone = payer.phone ?? {};
-        const identification = payer.identification ?? {};
+        const payer = paymentData.payer as any;
+        const address = payer?.address ?? {};
+        const phone = payer?.phone ?? {};
+        const identification = payer?.identification ?? {};
 
         const valores = [[
-          paymentData.id,
-          paymentData.status,
-          paymentData.payment_type_id,
-          paymentData.payment_method_id,
-          paymentData.transaction_amount,
-          paymentData.date_created,
-          paymentData.date_approved,
+          paymentData.id ?? "",
+          paymentData.status ?? "",
+          paymentData.payment_type_id ?? "",
+          paymentData.payment_method_id ?? "",
+          paymentData.transaction_amount ?? "",
+          paymentData.date_created ?? "",
+          paymentData.date_approved ?? "",
 
-          payer.email,
-          payer.name,
-          payer.surname,
-          identification.type,
-          identification.number,
-          phone.area_code,
-          phone.number,
+          payer?.email ?? "",
+          payer?.name ?? "", // ⚠️ Tipagem ignora por segurança
+          payer?.surname ?? "",
+          identification?.type ?? "",
+          identification?.number ?? "",
+          phone?.area_code ?? "",
+          phone?.number ?? "",
 
-          address.street_name,
-          address.street_number,
-          address.zip_code
+          address?.street_name ?? "",
+          address?.street_number ?? "",
+          address?.zip_code ?? ""
         ]];
 
         await appendToSheet(valores);
