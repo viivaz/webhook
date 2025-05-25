@@ -1,26 +1,27 @@
 // app/api/mercadopago-webhook/route.js
 
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { Payment } from "mercadopago";
 import mpClient, { verifyMercadoPagoSignature } from "@/app/lib/mercado-pago";
 import { google } from "googleapis";
 
-// 🔐 Suas credenciais (coloque essas variáveis no painel de Environment Variables da Vercel)
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
-const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 const sheetRange = "Página1!A2";
 
-async function appendToSheet(values: any[][])  {
+// Função auxiliar para enviar dados ao Google Sheets
+async function appendToSheet(values: any[]) {
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REFRESH_TOKEN
+    process.env.GOOGLE_CLIENT_SECRET
   );
+
+  auth.setCredentials({
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+  });
 
   const sheets = google.sheets({ version: "v4", auth });
 
   await sheets.spreadsheets.values.append({
-    spreadsheetId,
+    spreadsheetId: process.env.SPREADSHEET_ID,
     range: sheetRange,
     valueInputOption: "USER_ENTERED",
     requestBody: {
@@ -29,14 +30,14 @@ async function appendToSheet(values: any[][])  {
   });
 }
 
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   try {
     verifyMercadoPagoSignature(request);
-
     const body = await request.json();
+
     const { type, data } = body;
 
-    if (type === "payment") {
+    if (type === "payment" && data?.id) {
       const payment = new Payment(mpClient);
       const paymentData = await payment.get({ id: data.id });
 
@@ -44,24 +45,32 @@ export async function POST(request) {
         paymentData.status === "approved" ||
         paymentData.date_approved !== null
       ) {
-        const p = paymentData.payer;
+        // Extrai dados relevantes do pagamento e do cliente
+        const payer = paymentData.payer ?? {};
+        const address = payer.address ?? {};
+        const phone = payer.phone ?? {};
+        const identification = payer.identification ?? {};
+
         const valores = [[
           paymentData.id,
-          paymentData.external_reference,
           paymentData.status,
           paymentData.payment_type_id,
           paymentData.payment_method_id,
           paymentData.transaction_amount,
-          paymentData.net_received_amount,
           paymentData.date_created,
-          p?.name || "",
-          p?.surname || "",
-          p?.email || "",
-          `${p?.phone?.area_code || ""}${p?.phone?.number || ""}`,
-          p?.identification?.number || "",
-          p?.address?.street_name || "",
-          p?.address?.street_number || "",
-          p?.address?.zip_code || ""
+          paymentData.date_approved,
+
+          payer.email,
+          payer.name,
+          payer.surname,
+          identification.type,
+          identification.number,
+          phone.area_code,
+          phone.number,
+
+          address.street_name,
+          address.street_number,
+          address.zip_code
         ]];
 
         await appendToSheet(valores);
@@ -69,9 +78,11 @@ export async function POST(request) {
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
-
   } catch (error) {
-    console.error("❌ Webhook handler failed:", error);
-    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
+    console.error("Error handling webhook:", error);
+    return NextResponse.json(
+      { error: "Webhook handler failed" },
+      { status: 500 }
+    );
   }
 }
