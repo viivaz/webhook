@@ -42,10 +42,16 @@ export async function POST(request: NextRequest) {
         paymentData.status === "approved" ||
         paymentData.date_approved !== null
       ) {
-        const payer = paymentData.payer as any;
-        const address = payer?.address ?? {};
-        const phone = payer?.phone ?? {};
-        const identification = payer?.identification ?? {};
+        const payer = paymentData.payer || {};
+        const address = payer.address || {};
+        const phone = payer.phone || {};
+        const identification = payer.identification || {};
+        const card = paymentData.card || {};
+        const cardholder = card.cardholder || {};
+        const items = paymentData.additional_info?.items || [];
+
+        // Junta todos os produtos em uma string
+        const productsSummary = items.map((item: any) => item.title).join(" | ");
 
         const valores = [[
           paymentData.id ?? "",
@@ -56,17 +62,28 @@ export async function POST(request: NextRequest) {
           paymentData.date_created ?? "",
           paymentData.date_approved ?? "",
 
-          payer?.email ?? "",
-          payer?.name ?? "", // ⚠️ Tipagem ignora por segurança
-          payer?.surname ?? "",
-          identification?.type ?? "",
-          identification?.number ?? "",
-          phone?.area_code ?? "",
-          phone?.number ?? "",
+          payer.email ?? "",
+          payer.first_name ?? "",
+          payer.last_name ?? "",
+          identification.type ?? "",
+          identification.number ?? "",
+          phone.area_code ?? "",
+          phone.number ?? "",
 
-          address?.street_name ?? "",
-          address?.street_number ?? "",
-          address?.zip_code ?? ""
+          address.street_name ?? "",
+          address.street_number ?? "",
+          address.zip_code ?? "",
+
+          productsSummary,
+          paymentData.installments ?? "",
+          paymentData.transaction_details?.net_received_amount ?? "",
+          paymentData.transaction_details?.total_paid_amount ?? "",
+          paymentData.statement_descriptor ?? "",
+          paymentData.order?.id ?? "",
+
+          card.bin ?? "",
+          card.last_four_digits ?? "",
+          cardholder.name ?? ""
         ]];
 
         await appendToSheet(valores);
