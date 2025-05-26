@@ -3,7 +3,7 @@ import { Payment } from "mercadopago";
 import mpClient, { verifyMercadoPagoSignature } from "@/app/lib/mercado-pago";
 import { google } from "googleapis";
 
-const sheetRange = "Página1!A2";
+const sheetRange = "payments";
 
 async function appendToSheet(values: any[]) {
   const auth = new google.auth.OAuth2(
